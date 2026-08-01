@@ -69,6 +69,42 @@ test("createDockerSbxHandle copies approved project skills into an isolated micr
   }
 });
 
+test("createDockerSbxHandle uses the Codex template without provisioning Claude skills", async () => {
+  commands.length = 0;
+  const projectRoot = await makeProjectRoot();
+  try {
+    const handle = await createDockerSbxHandle(
+      { command: fakeCommand, agent: "codex", namePrefix: "codex-sbx", projectRoot },
+      {},
+    );
+
+    const name = commands[0]?.[2]!;
+    assert.deepEqual(commands[0]?.slice(0, 11), [
+      "create", "--name", name, "--cpus", "4", "--memory", "8g",
+      "--no-share-skills", "--template", "docker-sbx-codex:dev", "codex",
+    ]);
+    assert.equal(commands.length, 1);
+
+    await handle.close();
+    assert.deepEqual(commands[1], ["rm", "--force", name]);
+  } finally {
+    await rm(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test("createDockerSbxHandle preserves an explicit Codex template override", async () => {
+  commands.length = 0;
+  const handle = await createDockerSbxHandle(
+    { command: fakeCommand, agent: "codex", template: "project-codex:dev" },
+    {},
+  );
+
+  const name = commands[0]?.[2]!;
+  assert.deepEqual(commands[0]?.slice(8, 11), ["--template", "project-codex:dev", "codex"]);
+  await handle.close();
+  assert.deepEqual(commands[1], ["rm", "--force", name]);
+});
+
 test("createDockerSbxHandle skips skill provisioning when the project has no skills", async () => {
   commands.length = 0;
   const projectRoot = await makeProjectRoot(false);
