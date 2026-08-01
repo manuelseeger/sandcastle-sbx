@@ -16,6 +16,10 @@
     "build:sbx:claude": "docker build -f Dockerfile.sbx -t docker-sbx:dev .",
     "build:sbx:codex": "docker build -f Dockerfile.sbx -t docker-sbx-codex:dev --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:codex --build-arg AGENT_NPM_PACKAGE=@openai/codex --build-arg AGENT_BIN=codex .",
     "build:sbx": "npm run build:sbx:claude && npm run build:sbx:codex",
+    "load:sbx:claude": "docker image save docker-sbx:dev -o /tmp/docker-sbx-dev.tar && sbx template load /tmp/docker-sbx-dev.tar",
+    "load:sbx:codex": "docker image save docker-sbx-codex:dev -o /tmp/docker-sbx-codex-dev.tar && sbx template load /tmp/docker-sbx-codex-dev.tar",
+    "load:sbx": "npm run load:sbx:claude && npm run load:sbx:codex",
+    "prepare:sbx": "npm run build:sbx && npm run load:sbx",
     "test": "tsx --test test/*.test.mts"
   }
 }
