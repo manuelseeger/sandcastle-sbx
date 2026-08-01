@@ -32,7 +32,7 @@ await withDockerSbxProvider({
 
 An explicit `template` always overrides these defaults, but it must be built from the matching Docker Sandboxes base-agent template. Other agent strings are passed through unchanged and require an explicit compatible template.
 
-The optional `projectRoot` copies that project's `.claude/skills` directory into Claude guests as a one-way snapshot. It rejects symbolic links and non-regular files; credentials and project files are never mounted. Codex does not receive this Claude-specific directory; repository instructions such as `AGENTS.md` arrive through Sandcastle's Git bundle.
+The optional `projectRoot` uses the checked-in `.agents/skills` directory as the canonical skill source. For Claude guests, its validated regular-file tree is copied as a one-way snapshot to `/home/agent/.claude/skills` for compatibility. Codex reads `.agents/skills` directly from the workspace transferred by Sandcastle, so it receives no home-directory skill copy. Symbolic links and non-regular files are rejected; credentials and project files are never mounted.
 
 ## Templates
 

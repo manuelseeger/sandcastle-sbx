@@ -26,14 +26,14 @@ const failingCreateCommand: SbxCommand = {
 async function makeProjectRoot(withSkills = true): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "sandcastle-project-"));
   if (withSkills) {
-    const skills = join(root, ".claude", "skills", "example");
+    const skills = join(root, ".agents", "skills", "example");
     await mkdir(skills, { recursive: true });
     await writeFile(join(skills, "SKILL.md"), "# Example\n");
   }
   return root;
 }
 
-test("createDockerSbxHandle copies approved project skills into an isolated microVM", async () => {
+test("createDockerSbxHandle copies approved .agents skills into Claude's compatibility path", async () => {
   commands.length = 0;
   const projectRoot = await makeProjectRoot();
   try {
@@ -51,7 +51,7 @@ test("createDockerSbxHandle copies approved project skills into an isolated micr
     assert.match(name, /^test-sbx-/);
     assert.deepEqual(commands.slice(1, 3), [
       ["exec", name, "mkdir", "-p", "/home/agent/.claude"],
-      ["cp", join(projectRoot, ".claude", "skills"), `${name}:/home/agent/.claude/`],
+      ["cp", join(projectRoot, ".agents", "skills"), `${name}:/home/agent/.claude/`],
     ]);
 
     await handle.copyIn("/tmp/repo.bundle", "/tmp/repo.bundle");
@@ -69,7 +69,7 @@ test("createDockerSbxHandle copies approved project skills into an isolated micr
   }
 });
 
-test("createDockerSbxHandle uses the Codex template without provisioning Claude skills", async () => {
+test("createDockerSbxHandle uses the Codex template without home-directory skill provisioning", async () => {
   commands.length = 0;
   const projectRoot = await makeProjectRoot();
   try {
@@ -123,7 +123,7 @@ test("createDockerSbxHandle rejects linked files in project skills and removes t
   commands.length = 0;
   const projectRoot = await makeProjectRoot();
   try {
-    await symlink("/etc/passwd", join(projectRoot, ".claude", "skills", "host-file"));
+    await symlink("/etc/passwd", join(projectRoot, ".agents", "skills", "host-file"));
     await assert.rejects(
       createDockerSbxHandle({ command: fakeCommand, projectRoot, namePrefix: "unsafe-sbx" }, {}),
       /unsupported entry/,

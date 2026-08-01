@@ -71,7 +71,7 @@ npm run sandcastle
 
 The provider creates a fresh Codex VM per operation, Sandcastle transfers the Git bundle, and `sbx` supplies subscription authentication through its host-side proxy. Codex session files are captured by Sandcastle; host `~/.codex/auth.json` is not mounted or copied.
 
-Project `AGENTS.md` instructions arrive in the VM through the Git bundle. The provider deliberately does not copy `.claude/skills` to Codex VMs.
+Project `AGENTS.md` instructions and the checked-in `.agents/skills` tree arrive in the VM through the Git bundle. Codex reads that workspace skill tree directly; the provider does not copy skills to Codex's home directory.
 
 ## Optional: retain Claude for selected roles
 

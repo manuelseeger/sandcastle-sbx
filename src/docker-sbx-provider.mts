@@ -38,7 +38,7 @@ export type DockerSbxOptions = {
   agent?: string;
   /** Prefix for discoverable, project-owned VM names. */
   namePrefix?: string;
-  /** Repository root whose approved `.claude/skills` tree is copied into Claude guests. */
+  /** Repository root whose approved `.agents/skills` tree is copied into Claude guests. */
   projectRoot?: string;
   cpus?: number;
   memory?: string;
@@ -94,7 +94,7 @@ async function provisionProjectSkills(
   timeoutMs: number,
   projectRoot: string | undefined,
 ): Promise<void> {
-  const skillsPath = resolve(projectRoot ?? process.cwd(), ".claude", "skills");
+  const skillsPath = resolve(projectRoot ?? process.cwd(), ".agents", "skills");
   if (!await validateSkillsTree(skillsPath)) return;
 
   // This is a one-way snapshot, not a host mount or Docker Sandboxes' writable
@@ -109,10 +109,10 @@ async function provisionProjectSkills(
  * sbx needs a host workspace when creating a VM. This provider gives it a fresh,
  * empty directory only; Sandcastle then transfers its Git bundle with `sbx cp`.
  * No project worktree, Docker socket, or agent state is mounted from the host.
- * For Claude guests, the repository's explicitly approved `.claude/skills`
- * tree is copied as a one-way snapshot; it is never shared between castles.
- * Codex receives repository instructions such as `AGENTS.md` through the Git
- * bundle, but does not receive Claude's skill directory.
+ * For Claude guests, the repository's explicitly approved `.agents/skills`
+ * tree is copied to Claude's compatibility path as a one-way snapshot; it is
+ * never shared between castles. Codex discovers the checked-in skill tree and
+ * repository instructions such as `AGENTS.md` through the Git bundle.
  */
 export async function createDockerSbxHandle(
   options: DockerSbxOptions,
