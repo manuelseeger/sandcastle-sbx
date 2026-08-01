@@ -55,4 +55,6 @@ sbx template load /tmp/docker-sbx-codex-dev.tar
 
 Before running Codex, configure OpenAI access with Docker Sandboxes on the host rather than copying host credentials into a guest. For example, use `sbx secret set -g openai --oauth` for ChatGPT OAuth, or `sbx secret set -g openai` for an API key.
 
+For a complete subscription-authenticated Codex setup in a consuming project, see [Run Codex in a Sandcastle sbx project](docs/codex-with-sbx.md).
+
 Application-specific runtimes, package caches, and sandbox setup belong in the consuming project's Sandcastle hooks or its own template.
