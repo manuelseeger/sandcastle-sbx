@@ -4,21 +4,18 @@ This guide shows how a project such as `mes-bio` can run Sandcastle's Codex agen
 
 ## 1. Build and load a Codex template
 
-Build the provider's generic image from the Docker Sandboxes Codex base image. Choose a project-specific tag; this guide uses `mes-bio-sbx-codex:dev`.
-
-From the `sandcastle-sbx` checkout:
+Build and load the provider's two standard images from the `sandcastle-sbx` checkout:
 
 ```sh
-docker build -f Dockerfile.sbx -t mes-bio-sbx-codex:dev \
-  --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:codex \
-  --build-arg AGENT_NPM_PACKAGE=@openai/codex \
-  --build-arg AGENT_BIN=codex .
-
-docker image save mes-bio-sbx-codex:dev -o /tmp/mes-bio-sbx-codex-dev.tar
-sbx template load /tmp/mes-bio-sbx-codex-dev.tar
+npm run prepare:sbx
 ```
 
-The image tag and the `agent` value must match: a template built from `sandbox-templates:codex` must be created with `agent: "codex"`.
+This makes the following templates available to `sbx` on that host:
+
+- `docker-sbx:dev` — Claude
+- `docker-sbx-codex:dev` — Codex
+
+The image tag and the `agent` value must match: `docker-sbx-codex:dev` must be created with `agent: "codex"`.
 
 ## 2. Authenticate sbx once on the host
 
@@ -44,7 +41,7 @@ const midCapAgent = sandcastle.codex("gpt-5.4", { effort: "high" });
 const lowCapAgent = sandcastle.codex("gpt-5.4", { effort: "low" });
 ```
 
-Then ensure the provider creates a Codex VM. Mes-bio's current `createSbxOptions(...)` helper hardcodes a Claude-oriented template, so override it in `createSandcastleSbxOptions`:
+Then ensure the provider creates a Codex VM. If the project helper already sets a template, override it with the standard Codex image:
 
 ```ts
 const createSandcastleSbxOptions = (scope: string) => {
@@ -56,7 +53,7 @@ const createSandcastleSbxOptions = (scope: string) => {
   return {
     ...createSbxOptions(githubRepository, projectRoot, scope),
     agent: "codex",
-    template: "mes-bio-sbx-codex:dev",
+    template: "docker-sbx-codex:dev",
     timeoutMs,
   };
 };
@@ -80,7 +77,7 @@ Project `AGENTS.md` instructions arrive in the VM through the Git bundle. The pr
 
 A run must pair the Sandcastle agent with its VM agent/template. If a project wants a Claude picker and a Codex implementer, create provider options separately for each invocation:
 
-- Claude invocation: `agent: "claude"` with a Claude-based template.
-- Codex invocation: `agent: "codex"` with `mes-bio-sbx-codex:dev` (or another Codex-based template).
+- Claude invocation: `agent: "claude"` with `docker-sbx:dev`.
+- Codex invocation: `agent: "codex"` with `docker-sbx-codex:dev`.
 
 Do not run `sandcastle.codex(...)` in a Claude-metadata sbx template or the reverse.
