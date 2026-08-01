@@ -13,6 +13,9 @@
     "tsx": "^4.23.1"
   },
   "scripts": {
+    "build:sbx:claude": "docker build -f Dockerfile.sbx -t docker-sbx:dev .",
+    "build:sbx:codex": "docker build -f Dockerfile.sbx -t docker-sbx-codex:dev --build-arg BASE_IMAGE=docker.io/docker/sandbox-templates:codex --build-arg AGENT_NPM_PACKAGE=@openai/codex --build-arg AGENT_BIN=codex .",
+    "build:sbx": "npm run build:sbx:claude && npm run build:sbx:codex",
     "test": "tsx --test test/*.test.mts"
   }
 }
