@@ -10,7 +10,9 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_TEMPLATE = "docker-sbx:dev";
+const DEFAULT_AGENT = "claude";
+const DEFAULT_CLAUDE_TEMPLATE = "docker-sbx:dev";
+const DEFAULT_CODEX_TEMPLATE = "docker-sbx-codex:dev";
 const DEFAULT_HOME_PATH = "/home/agent";
 const DEFAULT_WORKTREE_PATH = `${DEFAULT_HOME_PATH}/workspace`;
 const MAX_OUTPUT_CHARS = 64 * 1024;
@@ -32,11 +34,11 @@ export type SbxCommand = {
 export type DockerSbxOptions = {
   /** An sbx template with the selected agent toolchain baked in. */
   template?: string;
-  /** sbx agent metadata must match the template's base agent. */
+  /** sbx agent metadata must match the template's base agent. Claude and Codex have built-in defaults. */
   agent?: string;
   /** Prefix for discoverable, project-owned VM names. */
   namePrefix?: string;
-  /** Repository root whose approved `.claude/skills` tree is copied into each guest. */
+  /** Repository root whose approved `.claude/skills` tree is copied into Claude guests. */
   projectRoot?: string;
   cpus?: number;
   memory?: string;
@@ -107,15 +109,18 @@ async function provisionProjectSkills(
  * sbx needs a host workspace when creating a VM. This provider gives it a fresh,
  * empty directory only; Sandcastle then transfers its Git bundle with `sbx cp`.
  * No project worktree, Docker socket, or agent state is mounted from the host.
- * The repository's explicitly approved `.claude/skills` tree is copied as a
- * one-way snapshot into each guest; it is never shared between castles.
+ * For Claude guests, the repository's explicitly approved `.claude/skills`
+ * tree is copied as a one-way snapshot; it is never shared between castles.
+ * Codex receives repository instructions such as `AGENTS.md` through the Git
+ * bundle, but does not receive Claude's skill directory.
  */
 export async function createDockerSbxHandle(
   options: DockerSbxOptions,
   env: Record<string, string>,
 ): Promise<IsolatedSandboxHandle> {
   const command = options.command ?? defaultCommand;
-  const template = options.template ?? DEFAULT_TEMPLATE;
+  const agent = options.agent ?? DEFAULT_AGENT;
+  const template = options.template ?? (agent === "codex" ? DEFAULT_CODEX_TEMPLATE : DEFAULT_CLAUDE_TEMPLATE);
   const timeoutMs = options.timeoutMs ?? 10 * 60_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) throw new Error("sbx timeout must be a positive integer");
   const name = sandboxName(options.namePrefix ?? "docker-sbx");
@@ -130,10 +135,10 @@ export async function createDockerSbxHandle(
       "--memory", options.memory ?? "8g",
       "--no-share-skills",
       "--template", template,
-      options.agent ?? "claude",
+      agent,
       emptyWorkspace,
     ], timeoutMs);
-    await provisionProjectSkills(command, name, timeoutMs, options.projectRoot);
+    if (agent === "claude") await provisionProjectSkills(command, name, timeoutMs, options.projectRoot);
   } catch (error) {
     // `sbx create` can fail after allocating the named VM. Best-effort removal
     // makes provider setup failure deterministic as well as normal close.
