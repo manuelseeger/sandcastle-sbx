@@ -1,0 +1,32 @@
+# Build and load once per host:
+# docker build -f Dockerfile.sbx -t docker-sbx:dev .
+# docker image save docker-sbx:dev -o /tmp/docker-sbx-dev.tar
+# sbx template load /tmp/docker-sbx-dev.tar
+#
+# This is a reusable coding template. Never add project source, credentials,
+# application runtimes, or project-specific package caches to this image.
+FROM docker.io/docker/sandbox-templates:claude-code-docker
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  build-essential ca-certificates curl git gh jq \
+  && rm -rf /var/lib/apt/lists/*
+
+# The base template ships a self-updating Claude binary in /home/agent/.local/bin.
+# Put the current npm release first so the guest consistently uses this version.
+RUN npm install --global @anthropic-ai/claude-code@latest \
+ && /usr/local/share/npm-global/bin/claude --version
+
+# Browser tooling is useful to coding agents. The browser binary itself is
+# downloaded below as `agent`, making it available from that user's cache.
+RUN npm install --global @playwright/cli@latest \
+ && /usr/local/share/npm-global/lib/node_modules/@playwright/cli/node_modules/.bin/playwright install-deps chromium \
+ && /usr/local/share/npm-global/lib/node_modules/@playwright/cli/node_modules/.bin/playwright install chrome
+
+USER agent
+ENV PATH="/usr/local/share/npm-global/bin:/home/agent/.local/bin:${PATH}"
+
+RUN /usr/local/share/npm-global/lib/node_modules/@playwright/cli/node_modules/.bin/playwright install chromium
+
+# uv selects the application-pinned Python version during project setup.
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
