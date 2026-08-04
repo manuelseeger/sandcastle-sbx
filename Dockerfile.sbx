@@ -29,16 +29,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN npm install --global "${AGENT_NPM_PACKAGE}@latest" \
  && "/usr/local/share/npm-global/bin/${AGENT_BIN}" --version
 
-# Browser tooling is useful to coding agents. The browser binary itself is
-# downloaded below as `agent`, making it available from that user's cache.
-RUN npm install --global @playwright/cli@latest \
- && /usr/local/share/npm-global/lib/node_modules/@playwright/cli/node_modules/.bin/playwright install-deps chromium \
- && /usr/local/share/npm-global/lib/node_modules/@playwright/cli/node_modules/.bin/playwright install chrome
+# Put Aspire and both Playwright command-line entry points on every agent's
+# PATH. @playwright/cli exposes `playwright-cli`; its bundled Playwright binary
+# is also exposed as the conventional `playwright` command.
+RUN npm install --global @microsoft/aspire-cli@latest @playwright/cli@latest \
+ && ln -sf ../lib/node_modules/@playwright/cli/node_modules/.bin/playwright /usr/local/share/npm-global/bin/playwright \
+ && /usr/local/share/npm-global/bin/aspire --version \
+ && /usr/local/share/npm-global/bin/playwright --version \
+ && /usr/local/share/npm-global/bin/playwright-cli --help >/dev/null \
+ && /usr/local/share/npm-global/bin/playwright install-deps chromium \
+ && /usr/local/share/npm-global/bin/playwright install chrome
 
 USER agent
 ENV PATH="/usr/local/share/npm-global/bin:/home/agent/.local/bin:${PATH}"
 
-RUN /usr/local/share/npm-global/lib/node_modules/@playwright/cli/node_modules/.bin/playwright install chromium
+RUN playwright install chromium
 
 # uv selects the application-pinned Python version during project setup.
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
