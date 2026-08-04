@@ -26,7 +26,20 @@ test("buildIssueForest returns ready leaves under each root", () => {
   assert.deepEqual(forest.roots[0]?.readyIssues.map(({ number }) => number), [2, 3]);
 });
 
-test("buildIssueForest skips a component with a shared dependency", () => {
+test("buildIssueForest allows dependencies between sibling sub-issues", () => {
+  const root = issue(1);
+  const firstChild = issue(2, { parent: root });
+  const secondChild = issue(3, { parent: root, blockedBy: [firstChild] });
+
+  const forest = buildIssueForest([root, firstChild, secondChild]);
+
+  assert.deepEqual(forest.errors, []);
+  assert.equal(forest.roots.length, 1);
+  assert.equal(forest.roots[0]?.root.number, 1);
+  assert.deepEqual(forest.roots[0]?.readyIssues.map(({ number }) => number), [2]);
+});
+
+test("buildIssueForest skips a shared dependency spanning multiple roots", () => {
   const blocker = issue(3);
   const forest = buildIssueForest([
     issue(1, { blockedBy: [blocker] }),
@@ -35,7 +48,7 @@ test("buildIssueForest skips a component with a shared dependency", () => {
   ]);
 
   assert.deepEqual(forest.roots, []);
-  assert.match(forest.errors[0] ?? "", /shared dependency #3/);
+  assert.match(forest.errors[0] ?? "", /component has 2 roots/);
 });
 
 test("buildIssueForest skips a dependency cycle", () => {

@@ -18,11 +18,25 @@ FROM ${BASE_IMAGE}
 
 ARG AGENT_NPM_PACKAGE=@anthropic-ai/claude-code
 ARG AGENT_BIN=claude
+ARG NODE_VERSION=26.5.1
+ARG TARGETARCH
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  build-essential ca-certificates curl git gh jq \
+  build-essential ca-certificates curl git gh jq xz-utils \
   && rm -rf /var/lib/apt/lists/*
+
+# Install the same Node.js release regardless of the base agent template.
+RUN case "${TARGETARCH}" in \
+      amd64) NODE_ARCH=x64; NODE_SHA256=cc7b3484ade63bd203a9d304f21ec37a3b622b988d7bdecf1dc4d68fc44a91b7 ;; \
+      arm64) NODE_ARCH=arm64; NODE_SHA256=0b6b0cc2a1eecbe736f9918de8b5a6c9a48d286b88bec1298a3c1e3376182ea8 ;; \
+      *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSLo /tmp/node.tar.xz "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
+ && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum --check - \
+ && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+ && rm /tmp/node.tar.xz \
+ && test "$(node --version)" = "v${NODE_VERSION}"
 
 # Put the current agent CLI ahead of any self-updating base-image binary so
 # guests consistently use the version installed by this template.

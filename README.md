@@ -36,7 +36,7 @@ The optional `projectRoot` uses the checked-in `.agents/skills` directory as the
 
 ## Templates
 
-`Dockerfile.sbx` builds generic Claude Code and Codex coding templates with GitHub CLI, `uv`, Aspire (`aspire`), and Playwright/Chrome (`playwright` and `playwright-cli`) on the agent PATH. Build and load the template for the agent you will run:
+`Dockerfile.sbx` builds generic Claude Code and Codex coding templates with Node.js 26, GitHub CLI, `uv`, Aspire (`aspire`), and Playwright/Chrome (`playwright` and `playwright-cli`) on the agent PATH. Build and load the template for the agent you will run:
 
 ```sh
 # Claude (the default)
