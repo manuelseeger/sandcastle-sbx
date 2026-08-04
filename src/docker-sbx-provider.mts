@@ -6,7 +6,8 @@ import {
 import { execFile, spawn } from "node:child_process";
 import { lstat, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -16,6 +17,15 @@ const DEFAULT_CODEX_TEMPLATE = "docker-sbx-codex:dev";
 const DEFAULT_HOME_PATH = "/home/agent";
 const DEFAULT_WORKTREE_PATH = `${DEFAULT_HOME_PATH}/workspace`;
 const MAX_OUTPUT_CHARS = 64 * 1024;
+// sbx templates cannot embed network policy. This adjacent mixin kit is applied
+// while each VM is created, keeping NuGet access scoped to that VM.
+const DEFAULT_NUGET_KIT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".sbx",
+  "kits",
+  "nuget-restore",
+);
 
 type ExecOptions = {
   onLine?: (line: string) => void;
@@ -40,6 +50,8 @@ export type DockerSbxOptions = {
   namePrefix?: string;
   /** Repository root whose approved `.agents/skills` tree is copied into Claude guests. */
   projectRoot?: string;
+  /** Additional sbx kits to apply when creating the VM. */
+  kits?: readonly string[];
   cpus?: number;
   memory?: string;
   /** Bound create, copy, and removal calls so a broken backend cannot hang a run. */
@@ -133,6 +145,10 @@ export async function createDockerSbxHandle(
       "--name", name,
       "--cpus", String(options.cpus ?? 4),
       "--memory", options.memory ?? "8g",
+      // NuGet's v3 endpoint is not covered by sbx's `nuget.org` default
+      // allowance. Pass this per-VM kit rather than weakening host policy.
+      "--kit", DEFAULT_NUGET_KIT,
+      ...(options.kits ?? []).flatMap((kit) => ["--kit", kit]),
       "--no-share-skills",
       "--template", template,
       agent,

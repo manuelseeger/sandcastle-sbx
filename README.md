@@ -53,6 +53,8 @@ docker image save docker-sbx-codex:dev -o /tmp/docker-sbx-codex-dev.tar
 sbx template load /tmp/docker-sbx-codex-dev.tar
 ```
 
+The provider applies its packaged NuGet-restore kit to every VM it creates. This grants that VM (not the host-wide policy) access to `api.nuget.org:443`, which Aspire needs to restore its CLI package. Add project-specific sbx kits through `kits`; they are applied in addition to this mandatory, narrow allowance. Templates cannot carry network policy.
+
 Before running Codex, configure OpenAI access with Docker Sandboxes on the host rather than copying host credentials into a guest. For example, use `sbx secret set -g openai --oauth` for ChatGPT OAuth, or `sbx secret set -g openai` for an API key.
 
 For a complete subscription-authenticated Codex setup in a consuming project, see [Run Codex in a Sandcastle sbx project](docs/codex-with-sbx.md).

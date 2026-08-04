@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import {
   createDockerSbxHandle,
@@ -43,8 +43,9 @@ test("createDockerSbxHandle copies approved .agents skills into Claude's compati
     );
 
     assert.equal(handle.worktreePath, "/home/agent/workspace");
-    assert.deepEqual(commands[0]?.slice(0, 11), [
+    assert.deepEqual(commands[0]?.slice(0, 13), [
       "create", "--name", commands[0]?.[2]!, "--cpus", "4", "--memory", "8g",
+      "--kit", resolve(".sbx/kits/nuget-restore"),
       "--no-share-skills", "--template", "docker-sbx:dev", "claude",
     ]);
     const name = commands[0]?.[2]!;
@@ -79,8 +80,9 @@ test("createDockerSbxHandle uses the Codex template without home-directory skill
     );
 
     const name = commands[0]?.[2]!;
-    assert.deepEqual(commands[0]?.slice(0, 11), [
+    assert.deepEqual(commands[0]?.slice(0, 13), [
       "create", "--name", name, "--cpus", "4", "--memory", "8g",
+      "--kit", resolve(".sbx/kits/nuget-restore"),
       "--no-share-skills", "--template", "docker-sbx-codex:dev", "codex",
     ]);
     assert.equal(commands.length, 1);
@@ -100,9 +102,23 @@ test("createDockerSbxHandle preserves an explicit Codex template override", asyn
   );
 
   const name = commands[0]?.[2]!;
-  assert.deepEqual(commands[0]?.slice(8, 11), ["--template", "project-codex:dev", "codex"]);
+  assert.deepEqual(commands[0]?.slice(10, 13), ["--template", "project-codex:dev", "codex"]);
   await handle.close();
   assert.deepEqual(commands[1], ["rm", "--force", name]);
+});
+
+test("createDockerSbxHandle applies caller kits after the NuGet restore kit", async () => {
+  commands.length = 0;
+  const handle = await createDockerSbxHandle(
+    { command: fakeCommand, kits: ["project-policy", "project-tools"] },
+    {},
+  );
+
+  assert.deepEqual(commands[0]?.slice(7, 13), [
+    "--kit", resolve(".sbx/kits/nuget-restore"),
+    "--kit", "project-policy", "--kit", "project-tools",
+  ]);
+  await handle.close();
 });
 
 test("createDockerSbxHandle skips skill provisioning when the project has no skills", async () => {
