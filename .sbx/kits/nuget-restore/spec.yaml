@@ -1,0 +1,7 @@
+schemaVersion: "1"
+kind: mixin
+name: nuget-restore
+caps:
+  network:
+    allow:
+      - "api.nuget.org:443"

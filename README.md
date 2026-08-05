@@ -32,11 +32,11 @@ await withDockerSbxProvider({
 
 An explicit `template` always overrides these defaults, but it must be built from the matching Docker Sandboxes base-agent template. Other agent strings are passed through unchanged and require an explicit compatible template.
 
-The optional `projectRoot` copies that project's `.claude/skills` directory into Claude guests as a one-way snapshot. It rejects symbolic links and non-regular files; credentials and project files are never mounted. Codex does not receive this Claude-specific directory; repository instructions such as `AGENTS.md` arrive through Sandcastle's Git bundle.
+The optional `projectRoot` uses the checked-in `.agents/skills` directory as the canonical skill source. For Claude guests, its validated regular-file tree is copied as a one-way snapshot to `/home/agent/.claude/skills` for compatibility. Codex reads `.agents/skills` directly from the workspace transferred by Sandcastle, so it receives no home-directory skill copy. Symbolic links and non-regular files are rejected; credentials and project files are never mounted.
 
 ## Templates
 
-`Dockerfile.sbx` builds generic Claude Code and Codex coding templates with GitHub CLI, `uv`, and Playwright/Chrome available. Build and load the template for the agent you will run:
+`Dockerfile.sbx` builds generic Claude Code and Codex coding templates with Node.js 26, GitHub CLI, `uv`, Aspire (`aspire`), and Playwright/Chrome (`playwright` and `playwright-cli`) on the agent PATH. Build and load the template for the agent you will run:
 
 ```sh
 # Claude (the default)
@@ -52,6 +52,8 @@ docker build -f Dockerfile.sbx -t docker-sbx-codex:dev \
 docker image save docker-sbx-codex:dev -o /tmp/docker-sbx-codex-dev.tar
 sbx template load /tmp/docker-sbx-codex-dev.tar
 ```
+
+The provider applies its packaged NuGet-restore kit to every VM it creates. This grants that VM (not the host-wide policy) access to `api.nuget.org:443`, which Aspire needs to restore its CLI package. Add project-specific sbx kits through `kits`; they are applied in addition to this mandatory, narrow allowance. Templates cannot carry network policy.
 
 Before running Codex, configure OpenAI access with Docker Sandboxes on the host rather than copying host credentials into a guest. For example, use `sbx secret set -g openai --oauth` for ChatGPT OAuth, or `sbx secret set -g openai` for an API key.
 

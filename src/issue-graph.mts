@@ -88,12 +88,7 @@ export function buildIssueForest(issues: OpenIssue[]): IssueForest {
       .map((issueId) => issuesById.get(issueId)!)
       .sort((left, right) => left.number - right.number);
     const issueList = componentIssues.map((issue) => `#${issue.number}`).join(", ");
-    const sharedDependency = component.find((issueId) => dependents.get(issueId)!.size > 1);
 
-    if (sharedDependency) {
-      errors.push(`${issueList}: shared dependency #${issuesById.get(sharedDependency)!.number}`);
-      continue;
-    }
     if (hasCycle(component)) {
       errors.push(`${issueList}: dependency cycle`);
       continue;

@@ -6,7 +6,8 @@ import {
 import { execFile, spawn } from "node:child_process";
 import { lstat, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -16,6 +17,15 @@ const DEFAULT_CODEX_TEMPLATE = "docker-sbx-codex:dev";
 const DEFAULT_HOME_PATH = "/home/agent";
 const DEFAULT_WORKTREE_PATH = `${DEFAULT_HOME_PATH}/workspace`;
 const MAX_OUTPUT_CHARS = 64 * 1024;
+// sbx templates cannot embed network policy. This adjacent mixin kit is applied
+// while each VM is created, keeping NuGet access scoped to that VM.
+const DEFAULT_NUGET_KIT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".sbx",
+  "kits",
+  "nuget-restore",
+);
 
 type ExecOptions = {
   onLine?: (line: string) => void;
@@ -38,8 +48,10 @@ export type DockerSbxOptions = {
   agent?: string;
   /** Prefix for discoverable, project-owned VM names. */
   namePrefix?: string;
-  /** Repository root whose approved `.claude/skills` tree is copied into Claude guests. */
+  /** Repository root whose approved `.agents/skills` tree is copied into Claude guests. */
   projectRoot?: string;
+  /** Additional sbx kits to apply when creating the VM. */
+  kits?: readonly string[];
   cpus?: number;
   memory?: string;
   /** Bound create, copy, and removal calls so a broken backend cannot hang a run. */
@@ -94,7 +106,7 @@ async function provisionProjectSkills(
   timeoutMs: number,
   projectRoot: string | undefined,
 ): Promise<void> {
-  const skillsPath = resolve(projectRoot ?? process.cwd(), ".claude", "skills");
+  const skillsPath = resolve(projectRoot ?? process.cwd(), ".agents", "skills");
   if (!await validateSkillsTree(skillsPath)) return;
 
   // This is a one-way snapshot, not a host mount or Docker Sandboxes' writable
@@ -109,10 +121,10 @@ async function provisionProjectSkills(
  * sbx needs a host workspace when creating a VM. This provider gives it a fresh,
  * empty directory only; Sandcastle then transfers its Git bundle with `sbx cp`.
  * No project worktree, Docker socket, or agent state is mounted from the host.
- * For Claude guests, the repository's explicitly approved `.claude/skills`
- * tree is copied as a one-way snapshot; it is never shared between castles.
- * Codex receives repository instructions such as `AGENTS.md` through the Git
- * bundle, but does not receive Claude's skill directory.
+ * For Claude guests, the repository's explicitly approved `.agents/skills`
+ * tree is copied to Claude's compatibility path as a one-way snapshot; it is
+ * never shared between castles. Codex discovers the checked-in skill tree and
+ * repository instructions such as `AGENTS.md` through the Git bundle.
  */
 export async function createDockerSbxHandle(
   options: DockerSbxOptions,
@@ -133,6 +145,10 @@ export async function createDockerSbxHandle(
       "--name", name,
       "--cpus", String(options.cpus ?? 4),
       "--memory", options.memory ?? "8g",
+      // NuGet's v3 endpoint is not covered by sbx's `nuget.org` default
+      // allowance. Pass this per-VM kit rather than weakening host policy.
+      "--kit", DEFAULT_NUGET_KIT,
+      ...(options.kits ?? []).flatMap((kit) => ["--kit", kit]),
       "--no-share-skills",
       "--template", template,
       agent,

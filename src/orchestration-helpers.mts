@@ -37,6 +37,11 @@ export type RootBranch = {
   isDraft: boolean;
 };
 
+type GithubCommitIdentity = {
+  name: string;
+  email: string;
+};
+
 const openIssuesQuery = `
   query OpenIssues($owner: String!, $name: String!, $after: String) {
     repository(owner: $owner, name: $name) {
@@ -77,14 +82,27 @@ function refExists(ref: string): boolean {
   return Boolean(git(["show-ref", "--verify", ref], true));
 }
 
+function getGithubCommitIdentity(): GithubCommitIdentity {
+  const user = JSON.parse(gh(["api", "user"])) as { id?: unknown; login?: unknown; name?: unknown };
+  if (!Number.isSafeInteger(user.id) || typeof user.login !== "string" || !user.login) {
+    throw new Error("could not resolve GitHub commit identity");
+  }
+
+  return {
+    name: typeof user.name === "string" && user.name ? user.name : user.login,
+    email: `${user.id}+${user.login}@users.noreply.github.com`,
+  };
+}
+
 function initializeBranch(branch: string, issueNumber: number): void {
+  const identity = getGithubCommitIdentity();
   const worktree = mkdtempSync(join(tmpdir(), `sandcastle-root-${issueNumber}-`));
   try {
     git(["worktree", "add", "--force", worktree, branch]);
     git([
       "-C", worktree,
-      "-c", "user.name=Sandcastle",
-      "-c", "user.email=sandcastle@users.noreply.github.com",
+      "-c", `user.name=${identity.name}`,
+      "-c", `user.email=${identity.email}`,
       "commit", "--allow-empty", "-m", `chore: initialize Sandcastle work for #${issueNumber}`,
     ]);
   } finally {
@@ -129,12 +147,19 @@ export function createSbxOptions(
   scope: string,
   agent = "claude",
 ) {
+  const identity = getGithubCommitIdentity();
   return {
     agent,
     template: agent === "codex" ? "docker-sbx-codex:dev" : "docker-sbx:dev",
     namePrefix: `mes-bio-${scope}`,
     projectRoot,
-    env: { GH_REPO: githubRepository },
+    env: {
+      GH_REPO: githubRepository,
+      GIT_AUTHOR_NAME: identity.name,
+      GIT_AUTHOR_EMAIL: identity.email,
+      GIT_COMMITTER_NAME: identity.name,
+      GIT_COMMITTER_EMAIL: identity.email,
+    },
   };
 }
 
